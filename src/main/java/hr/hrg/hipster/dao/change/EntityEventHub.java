@@ -4,6 +4,7 @@ import java.util.*;
 
 import org.slf4j.*;
 
+import hr.hrg.hipster.dao.*;
 import hr.hrg.hipster.sql.*;
 
 @SuppressWarnings({"rawtypes","unchecked"})
@@ -17,7 +18,7 @@ public class EntityEventHub {
 	Map<Class, List<IDeletedDetailListener>> deleteDataListeners = new HashMap<>();
 	Map<Class, List<IAddListener>> addListeners = new HashMap<>();
 
-	public <ID, O, E extends IColumnMeta> void addChangeListener(IChangeListener<ID, O, E> listener, Class<O> clazz){
+	public <T, ID, E extends IColumnMeta> void addChangeListener(IChangeListener<T, ID, E> listener, Class<T> clazz){
 		synchronized (clazz) {
 			List<IChangeListener> list = changeListeners.get(clazz);
 			if(list == null) {
@@ -32,7 +33,7 @@ public class EntityEventHub {
 		return changeListeners.containsKey(clazz);
 	}
 	
-	public <ID, O, E extends IColumnMeta> void addBeforeChangeListener(IBeforeChangeListener<ID, O, E> listener, Class<O> clazz){
+	public <T, ID, E extends IColumnMeta, U extends IUpdatable<E>> void addBeforeChangeListener(IBeforeChangeListener<T, ID, E, U> listener, Class<T> clazz){
 		synchronized (clazz) {
 			List<IBeforeChangeListener> list = beforeChangeListeners.get(clazz);
 			if(list == null) {
@@ -46,8 +47,8 @@ public class EntityEventHub {
 	public boolean hasBeforeChangeListener(Class<?> clazz){
 		return beforeChangeListeners.containsKey(clazz);
 	}
-	
-	public <ID, O, E extends IColumnMeta> void addDeleteListener(IDeletedListener<ID, O, E> listener, Class<O> clazz){
+
+	public <T, ID, E extends IColumnMeta> void addDeleteListener(IDeletedListener<T, ID, E> listener, Class<T> clazz){
 		synchronized (clazz) {
 			List<IDeletedListener> list = deleteListeners.get(clazz);
 			if(list == null) {
@@ -92,15 +93,13 @@ public class EntityEventHub {
 		return addListeners.containsKey(clazz);
 	}
 		
-	
-	
 
-	public <T,ID,E extends IColumnMeta> void fireUpdate(DataUpdate<T,ID,E> update, long batchId, boolean batchDone){
+	public <T,ID,E extends IColumnMeta> void fireChange(DataUpdate<T,ID,E> update, long batchId){
 		List<IChangeListener> list = changeListeners.get(update.getMeta().getEntityClass());
 		if(list != null){
 			for (IChangeListener listener : list) {
 				try {
-					listener.recordChanged(update, batchId, batchDone);
+					listener.recordChanged(update, batchId);
 				} catch (Throwable e) {
 					log.error("Error notifying a listener: "+e.getMessage(),e);
 				}
@@ -108,12 +107,26 @@ public class EntityEventHub {
 		}
 	}
 
-	public <T> void fireDelete(Object id, T old, Class<T> clazz, long batchId, boolean batchDone){
+	public <T,ID,E extends IColumnMeta, U extends IUpdatable<E>> void fireBeforeChange(ID id, T old, U update, IEntityMeta<T,ID,E> meta, long batchId){
+		List<IBeforeChangeListener> list = beforeChangeListeners.get(meta.getEntityClass());
+
+		if(list != null){
+			for (IBeforeChangeListener listener : list) {
+				try {
+					listener.recordWillChange(id, old, update, meta, batchId);
+				} catch (Throwable e) {
+					log.error("Error notifying a listener: "+e.getMessage(),e);
+				}
+			}
+		}
+	}
+
+	public <T> void fireDelete(Object id, T old, Class<T> clazz, long batchId){
 		List<IDeletedListener> list = deleteListeners.get(clazz);
 		if(list != null){
 			for (IDeletedListener listener : list) {
 				try {
-					listener.recordDeleted(id, old, batchId, batchDone);
+					listener.recordDeleted(id, old, batchId);
 				} catch (Throwable e) {
 					log.error("Error notifying a listener: "+e.getMessage(),e);
 				}
@@ -121,25 +134,25 @@ public class EntityEventHub {
 		}
 	}
 	
-	public <T> void fireDeleteData(Object id, T old, Class<T> clazz, long batchId, boolean batchDone){
-		List<IDeletedDetailListener> list = deleteDataListeners.get(clazz);
+	public <T,ID,E extends IColumnMeta> void fireDeleteData(Object id, T old, IEntityMeta<T,ID,E> meta, long batchId){
+		List<IDeletedDetailListener> list = deleteDataListeners.get(meta.getEntityClass());
 		if(list != null){
 			for (IDeletedDetailListener listener : list) {
 				try {
-					listener.recordDeletedDetails(id, old, batchId, batchDone);
+					listener.recordDeletedDetails(id, old, meta, batchId);
 				} catch (Throwable e) {
-					log.error("Error notifying a listener: "+e.getMessage(),e);
+					log.error("Error notifying a listener: "+e.getMessage(), e);
 				}
 			}
 		}
 	}
 
-	public <T> void fireAdded(Object id, T obj, Class<T> clazz, long batchId, boolean batchDone){
-		List<IAddListener> list = addListeners.get(clazz);
+	public <T,ID,E extends IColumnMeta> void fireAdded(Object id, T obj, IEntityMeta<T,ID,E> meta, long batchId){
+		List<IAddListener> list = addListeners.get(meta.getEntityClass());
 		if(list != null){
 			for (IAddListener listener : list) {
 				try {
-					listener.recordAdded(id, obj, batchId, batchDone);
+					listener.recordAdded(id, obj, meta, batchId);
 				} catch (Throwable e) {
 					log.error("Error notifying a listener: "+e.getMessage(),e);
 				}

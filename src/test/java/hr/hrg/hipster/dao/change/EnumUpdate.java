@@ -11,7 +11,7 @@ import hr.hrg.hipster.sql.*;
  *
  * @param <E> Enum containing entity information
  */
-public class EnumUpdate<T,E extends IColumnMeta> implements IUpdate<T,E>{
+public class EnumUpdate<T,E extends IColumnMeta>{
 	
 	protected long _changeSet;
 	protected Object[] _values;
@@ -76,7 +76,7 @@ public class EnumUpdate<T,E extends IColumnMeta> implements IUpdate<T,E>{
 		return true;
 	}
 
-	@Override
+
 	public IUpdateDelta<E> getDelta() {
 		return new EnumArrayUpdateDelta<>(_changeSet, _values, universe);
 	}
