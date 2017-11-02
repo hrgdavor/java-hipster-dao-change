@@ -1,5 +1,6 @@
 package hr.hrg.hipster.dao.change;
 
+import hr.hrg.hipster.dao.*;
 import hr.hrg.hipster.sql.*;
 
 /** 
