@@ -78,7 +78,7 @@ public class EntityEventHub {
 		return deleteDataListeners.containsKey(clazz);
 	}
 	
-	public <ID, O, E extends IColumnMeta> void addAddListener(IAddListener<ID, O, E> listener, Class<O> clazz){
+	public <T, ID, E extends IColumnMeta> void addAddListener(IAddListener<T, ID, E> listener, Class<T> clazz){
 		synchronized (clazz) {
 			List<IAddListener> list = addListeners.get(clazz);
 			if(list == null) {
